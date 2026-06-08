@@ -1,0 +1,272 @@
+<!--
+  Copyright (c) 2026 Alan Miller
+  Released under the MIT License
+-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Relationshapez: Domino Tiling</title>
+  <style>
+    :root {
+      --gw-blue: #033C5A;
+      --gw-buff: #D6BF91;
+      --paper: #fffaf0;
+      --ink: #102633;
+      --line: rgba(3, 60, 90, 0.28);
+      --shadow: rgba(3, 60, 90, 0.18);
+      --gap: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: auto minmax(72px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      padding: calc(10px + env(safe-area-inset-top)) 10px 10px;
+      background: var(--gw-blue);
+      color: white;
+      box-shadow: 0 2px 10px var(--shadow);
+    }
+
+    label {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      border: 2px solid var(--gw-buff);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: white;
+      color: var(--gw-blue);
+      font: inherit;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    #count {
+      justify-self: end;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--gw-buff);
+      color: var(--gw-blue);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--gap);
+    }
+
+    #gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+      gap: var(--gap);
+      align-items: start;
+    }
+
+    .card {
+      overflow: hidden;
+      border: 2px solid var(--gw-blue);
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 2px 7px var(--shadow);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 9px;
+      background: var(--gw-blue);
+      color: white;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: white;
+    }
+
+    .domino-v {
+      fill: var(--gw-blue);
+    }
+
+    .domino-h {
+      fill: var(--gw-buff);
+    }
+
+    .domino {
+      stroke: var(--ink);
+      stroke-width: 1.5;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .cell-line {
+      stroke: var(--line);
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .board-line {
+      fill: none;
+      stroke: var(--gw-blue);
+      stroke-width: 2;
+      vector-effect: non-scaling-stroke;
+    }
+
+    @media (max-width: 430px) {
+      header {
+        grid-template-columns: auto 74px auto;
+      }
+
+      #count {
+        max-width: 42vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #gallery {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <label for="nInput">N</label>
+    <input id="nInput" type="number" inputmode="numeric" min="1" max="14" step="1" value="5" aria-label="Grid length N">
+    <div id="count">8 tilings</div>
+  </header>
+
+  <main>
+    <div id="gallery" aria-live="polite"></div>
+  </main>
+
+  <script>
+    const MAX_N = 14;
+    const nInput = document.getElementById('nInput');
+    const countBox = document.getElementById('count');
+    const gallery = document.getElementById('gallery');
+
+    function fibonacciTilings(n) {
+      let a = 1n;
+      let b = 1n;
+      for (let i = 1; i <= n; i++) {
+        const next = a + b;
+        a = b;
+        b = next;
+      }
+      return a;
+    }
+
+    function enumerateTilings(n) {
+      const results = [];
+
+      function backtrack(col, pieces) {
+        if (col === n) {
+          results.push(pieces.slice());
+          return;
+        }
+
+        pieces.push({ type: 'V', col });
+        backtrack(col + 1, pieces);
+        pieces.pop();
+
+        if (col + 1 < n) {
+          pieces.push({ type: 'H', row: 0, col });
+          pieces.push({ type: 'H', row: 1, col });
+          backtrack(col + 2, pieces);
+          pieces.pop();
+          pieces.pop();
+        }
+      }
+
+      backtrack(0, []);
+      return results;
+    }
+
+    function svgForTiling(tiling, n) {
+      const cell = 34;
+      const pad = 8;
+      const width = n * cell + 2 * pad;
+      const height = 2 * cell + 2 * pad;
+      const round = 6;
+      const parts = [];
+
+      for (const piece of tiling) {
+        if (piece.type === 'V') {
+          parts.push(`<rect class="domino domino-v" x="${pad + piece.col * cell}" y="${pad}" width="${cell}" height="${2 * cell}" rx="${round}" ry="${round}"></rect>`);
+        } else {
+          parts.push(`<rect class="domino domino-h" x="${pad + piece.col * cell}" y="${pad + piece.row * cell}" width="${2 * cell}" height="${cell}" rx="${round}" ry="${round}"></rect>`);
+        }
+      }
+
+      for (let c = 1; c < n; c++) {
+        const x = pad + c * cell;
+        parts.push(`<line class="cell-line" x1="${x}" y1="${pad}" x2="${x}" y2="${pad + 2 * cell}"></line>`);
+      }
+      parts.push(`<line class="cell-line" x1="${pad}" y1="${pad + cell}" x2="${pad + n * cell}" y2="${pad + cell}"></line>`);
+      parts.push(`<rect class="board-line" x="${pad}" y="${pad}" width="${n * cell}" height="${2 * cell}"></rect>`);
+
+      return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Domino tiling of a 2 by ${n} grid">${parts.join('')}</svg>`;
+    }
+
+    function render() {
+      let n = Number.parseInt(nInput.value, 10);
+      if (!Number.isFinite(n)) n = 1;
+      n = Math.max(1, Math.min(MAX_N, n));
+      nInput.value = String(n);
+
+      const tilings = enumerateTilings(n);
+      const total = fibonacciTilings(n).toString();
+      countBox.textContent = `${total} ${total === '1' ? 'tiling' : 'tilings'}`;
+
+      gallery.replaceChildren();
+      const fragment = document.createDocumentFragment();
+      tilings.forEach((tiling, index) => {
+        const card = document.createElement('section');
+        card.className = 'card';
+        card.innerHTML = `<div class="card-title"><span>${index + 1}</span><span>2×${n}</span></div>${svgForTiling(tiling, n)}`;
+        fragment.appendChild(card);
+      });
+      gallery.appendChild(fragment);
+    }
+
+    nInput.addEventListener('input', render);
+    nInput.addEventListener('change', render);
+    render();
+  </script>
+</body>
+</html>
