@@ -57,7 +57,7 @@
       letter-spacing: 0.02em;
     }
 
-    input {
+    select {
       width: 100%;
       min-width: 0;
       border: 2px solid var(--gw-buff);
@@ -165,8 +165,8 @@
 </head>
 <body>
   <header>
-    <label for="nInput">N</label>
-    <input id="nInput" type="number" inputmode="numeric" min="1" max="14" step="1" value="5" aria-label="Grid length N">
+    <label for="nSelect">N</label>
+    <select id="nSelect" aria-label="Grid length N"></select>
     <div id="count">8 tilings</div>
   </header>
 
@@ -176,7 +176,7 @@
 
   <script>
     const MAX_N = 14;
-    const nInput = document.getElementById('nInput');
+    const nSelect = document.getElementById('nSelect');
     const countBox = document.getElementById('count');
     const gallery = document.getElementById('gallery');
 
@@ -243,11 +243,20 @@
       return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Domino tiling of a 2 by ${n} grid">${parts.join('')}</svg>`;
     }
 
+    function buildMenu() {
+      const fragment = document.createDocumentFragment();
+      for (let n = 1; n <= MAX_N; n++) {
+        const option = document.createElement('option');
+        option.value = String(n);
+        option.textContent = String(n);
+        if (n === 5) option.selected = true;
+        fragment.appendChild(option);
+      }
+      nSelect.appendChild(fragment);
+    }
+
     function render() {
-      let n = Number.parseInt(nInput.value, 10);
-      if (!Number.isFinite(n)) n = 1;
-      n = Math.max(1, Math.min(MAX_N, n));
-      nInput.value = String(n);
+      const n = Number.parseInt(nSelect.value, 10);
 
       const tilings = enumerateTilings(n);
       const total = fibonacciTilings(n).toString();
@@ -264,8 +273,8 @@
       gallery.appendChild(fragment);
     }
 
-    nInput.addEventListener('input', render);
-    nInput.addEventListener('change', render);
+    nSelect.addEventListener('change', render);
+    buildMenu();
     render();
   </script>
 </body>
